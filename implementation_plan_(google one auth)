@@ -1,0 +1,54 @@
+# Google OAuth Integration Plan
+
+This plan outlines the steps required to implement Google OAuth ("Sign in with Google") into the application without disrupting the existing email/password authentication system.
+
+## User Review Required
+
+> [!WARNING]
+> Before we begin executing this plan, you will need to go to the [Google Cloud Console](https://console.cloud.google.com/), create a project, and generate **OAuth 2.0 Client IDs** (Client ID and Client Secret).
+> - Authorized JavaScript origins: `http://localhost:3000`
+> - Authorized redirect URIs: `http://localhost:3001/api/v1/auth/google/callback`
+> 
+> You will need to add these credentials to your backend `.env` file once we start.
+
+## Proposed Changes
+
+### Database Schema (Prisma)
+
+#### [MODIFY] [schema.prisma](file:///c:/Users/pranesh.S.S/OneDrive/task%20manager%20NIT/backend/prisma/schema.prisma)
+- Make the `password` field optional (`password String?`) since Google users won't have a traditional password.
+- Add an `authProvider` field to track how the user signed up (e.g., `enum AuthProvider { LOCAL, GOOGLE }`).
+- Add a `googleId` field (`googleId String? @unique`) to securely link the Google account.
+- Run a Prisma migration to update the database schema.
+
+### Backend
+
+#### [NEW] Dependencies
+- Install `@nestjs/passport`, `passport-google-oauth20`, and `@types/passport-google-oauth20`.
+
+#### [NEW] Google Strategy
+- Create a new file `google.strategy.ts` in the Auth module. This strategy will handle the OAuth handshake with Google, verifying the user's profile and email.
+
+#### [MODIFY] [auth.controller.ts](file:///c:/Users/pranesh.S.S/OneDrive/task%20manager%20NIT/backend/src/auth/auth.controller.ts)
+- Add `GET /auth/google` to trigger the Google login redirect.
+- Add `GET /auth/google/callback` to handle the response from Google. It will call the Auth service to generate the standard JWT access and refresh tokens, set the cookie, and then redirect the user to the frontend dashboard.
+
+#### [MODIFY] [auth.service.ts](file:///c:/Users/pranesh.S.S/OneDrive/task%20manager%20NIT/backend/src/auth/auth.service.ts)
+- Implement a `validateGoogleUser` method.
+  - If a user with the Google email already exists, link their account.
+  - If they do not exist, automatically create a new User record for them and assign them to a default Organization (or prompt them to join one).
+
+### Frontend
+
+#### [MODIFY] [login/page.tsx](file:///c:/Users/pranesh.S.S/OneDrive/task%20manager%20NIT/frontend/src/app/(auth)/login/page.tsx) & [register/page.tsx](file:///c:/Users/pranesh.S.S/OneDrive/task%20manager%20NIT/frontend/src/app/(auth)/register/page.tsx)
+- Add a "Sign in with Google" button below the traditional email/password form.
+- The button will trigger a redirect to the backend's `/api/v1/auth/google` endpoint.
+
+## Verification Plan
+
+### Manual Verification
+1. Click the "Sign in with Google" button on the frontend.
+2. Verify redirect to the Google consent screen.
+3. Authenticate with a Google account.
+4. Verify the backend creates a session, sets the HttpOnly cookie, and redirects to the `/dashboard`.
+5. Verify the user is successfully logged in.

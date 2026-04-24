@@ -1,0 +1,40 @@
+import { IsOptional, IsInt, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
+
+/**
+ * Shared pagination DTO used across all list endpoints.
+ * Supports offset-based pagination with page and limit.
+ *
+ * @example GET /tasks?page=2&limit=20
+ */
+export class PaginationDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit: number = 10;
+
+  get offset(): number {
+    return (this.page - 1) * this.limit;
+  }
+}
+
+/**
+ * Standard paginated response shape.
+ */
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
